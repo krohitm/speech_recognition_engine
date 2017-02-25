@@ -3,8 +3,11 @@ Class sused to extract features from audio file which is later used by the netwo
 Reference: Github: baidu-reaserch/ba-dls-deepspeech
 """
 import json
+import numpy as np
 import logging.config
 from utils import spectrogram_from_file
+from utils import text_to_int_sequence
+from utils import normalize_features
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,7 @@ class DataGenerator(object):
             self.load_metadata_from_descfile(desc_file)
 
     def generate_audio_features(self, audio_clip):
-        spectrogram_from_file(audio_clip, self.step, self.window)
+        return spectrogram_from_file(audio_clip, self.step, self.window)
 
     def load_metadata_from_descfile(self, desc_file, partition='train'):
         """
@@ -54,3 +57,70 @@ class DataGenerator(object):
 
     def load_dev_data(self, desc_file):
         self.load_metadata_from_descfile(desc_file, 'dev')
+
+    def generate_minibatch(self, audio_paths, texts):
+        """
+        Function generates mini-btaches for further processing
+        :param self:
+        :param audio_paths: Paths of audio files (list format)
+        :param texts: Texts corresponding to audio files (list format)
+        :return:
+        """
+        assert len(audio_paths) == len(texts), "Input and output length should match"
+        features = [self.generate_audio_features(a) for a in audio_paths]
+        input_lengths = [f.shape[0] for f in features]
+        max_length = max(input_lengths)
+        feature_dim = features[0].shape[1]
+        mb_size = len(features)
+        x = np.zeros((mb_size, max_length, feature_dim))
+        y = []
+        label_lengths = []
+        for i in range(mb_size):
+            feat = features[i]
+            feat = normalize_features(feat)
+            x[i, :feat.shape[0], :] = feat
+            label = text_to_int_sequence(texts[i])
+            y.append(label)
+            label_lengths.append(len(label))
+        # Flatten labels to comply with CTC signature
+        y = reduce(lambda x, z: x + z, y)
+        return {
+            'x': x,  # features(padded with zero) shape(minibatch-size, time-steps, feature-dimensions)
+            'y': y,  # Flattened output labels transformed as integers
+            'texts': texts,  # original list of texts
+            'input-lengths': input_lengths,  # length of each input
+            'label-lengths': label_lengths  # length of each label
+        }
+
+    def iterate(self, audio_paths, texts, batch_size):
+        """
+
+        :param audio_paths:
+        :param texts:
+        :param batch_size:
+        :return:
+        """
+        start = 0
+        print batch_size
+        number_of_iterations = int(np.ceil(len(audio_paths)/batch_size))
+        for k in range(number_of_iterations):
+            print audio_paths[start: start+batch_size]
+            print texts[start: start+batch_size]
+            yield self.generate_minibatch(audio_paths[start: start+batch_size],
+                                          texts[start: start+batch_size])
+
+    def iterate_dev(self, mini_batch_size=16, sortBy_duration=False):
+        """
+        Function iterates over the training data and form mini-batches for further processing
+        :param mini_batch_size: batch size
+        :param sortBy_duration: if true, sort audio signals by duration before forming mini batches
+        :return:
+        """
+        durations, audio_paths, texts = (self.dev_durations,
+                                         self.dev_audio_path,
+                                         self.dev_texts)
+        if sortBy_duration:
+            durations, audio_paths, texts = zip(*sorted(zip(durations, audio_paths, texts)))
+            audio_paths = list(audio_paths)
+            texts = list(texts)
+        return self.iterate(audio_paths, texts, mini_batch_size)
