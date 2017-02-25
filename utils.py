@@ -4,8 +4,9 @@ Common functions are written here
 
 import logging.config
 import soundfile as sf
+import numpy as np
 from scipy.signal import spectrogram
-
+from sklearn.preprocessing import normalize
 
 logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def spectrogram_from_file(fileName, step, window):
         hop_length = int(0.001 * step * sample_rate)
         fft_length = int(0.001 * window * sample_rate)
         f, t, x = spectrogram(audio, fs=sample_rate, window=('tukey', 0.0), nperseg=fft_length, noverlap=hop_length)
-        return x
+        return np.transpose(x)
 
 
 def text_to_int_sequence(text):
@@ -47,5 +48,10 @@ def text_to_int_sequence(text):
         elif c == "'":
             int_sequence.append(1)
         else:
-            int_sequence.append(ord(c) - 96)
+            # code changed to start alphabets from 3 rather than 1
+            int_sequence.append(ord(c) - 94)
     return int_sequence
+
+
+def normalize_features(feat):
+    return normalize(feat, axis=0)
