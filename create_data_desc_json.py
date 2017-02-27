@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # path_data_directory = "../MLProject/LibriSpeech/dev-clean/"
     # path_output_file = "./data.json"
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_directory', type=str,
+    parser.add_argument('cLd', type=str,
                         help='Path to data directory')
     parser.add_argument('output_file', type=str,
                         help='Path to output file')

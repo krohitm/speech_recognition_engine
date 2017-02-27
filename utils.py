@@ -55,3 +55,7 @@ def text_to_int_sequence(text):
 
 def normalize_features(feat):
     return normalize(feat, axis=0)
+
+def weights_random(layer1_size, layer2_size):
+    e = np.sqrt(6) / np.sqrt(layer1_size + layer2_size)
+    return np.dot(np.random.rand(layer1_size, layer2_size), 2 * e) - e
