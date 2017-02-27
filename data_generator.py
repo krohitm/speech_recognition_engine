@@ -101,13 +101,14 @@ class DataGenerator(object):
         :return:
         """
         start = 0
-        print batch_size
+        # print batch_size
         number_of_iterations = int(np.ceil(len(audio_paths)/batch_size))
         for k in range(number_of_iterations):
-            print audio_paths[start: start+batch_size]
-            print texts[start: start+batch_size]
+            #print audio_paths[start: start+batch_size]
+            # print texts[start: start+batch_size]
             yield self.generate_minibatch(audio_paths[start: start+batch_size],
                                           texts[start: start+batch_size])
+            start = start + batch_size
 
     def iterate_dev(self, mini_batch_size=16, sortBy_duration=False):
         """
