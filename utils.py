@@ -2,19 +2,11 @@
 Common functions are written here
 """
 
-import logging.config
+from logger import log
 import soundfile as sf
 import numpy as np
 from scipy.signal import spectrogram
 from sklearn.preprocessing import normalize
-
-logging.config.fileConfig('logging.conf')
-logger = logging.getLogger(__name__)
-
-logger.info("Test info statement")
-logger.debug("Test debug statement")
-logger.warn("Test warn statement")
-logger.error("Test error statement")
 
 
 def spectrogram_from_file(fileName, step, window):
@@ -25,7 +17,7 @@ def spectrogram_from_file(fileName, step, window):
     :param window: window-size in milliseconds of FFT
     :return:
     """
-    logger.debug("Generating spectrogram from audio file.")
+    log.debug("Inside spectrogram_from_file")
     with sf.SoundFile(fileName) as sound_file:
         audio = sound_file.read(dtype='float32')
         sample_rate = sound_file.samplerate
@@ -41,6 +33,7 @@ def text_to_int_sequence(text):
     :param text:
     :return:
     """
+    log.debug("Inside text_to_int_sequence")
     int_sequence = []
     for c in text:
         if c == ' ':
@@ -55,6 +48,7 @@ def text_to_int_sequence(text):
 
 def normalize_features(feat):
     return normalize(feat, axis=0)
+
 
 def weights_random(layer1_size, layer2_size):
     e = np.sqrt(6) / np.sqrt(layer1_size + layer2_size)
