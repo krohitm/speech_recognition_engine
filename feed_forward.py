@@ -22,7 +22,7 @@ class train_rnn_model(object):
         a = (np.exp(-z) - np.exp(-z))/(np.exp(-z) + np.exp(-z))
         return a
     
-    def feedforward(self, xi, MBsize, weights, hidden_states_prev):
+    def feedforward(self, xi, MBsize, weights, hidden_states_prev, bias):
         """
         :param xi: input audio signals batch in the form of spectrogram
         :param weights: weights of the layers in a dictionary
@@ -54,49 +54,48 @@ class train_rnn_model(object):
         #print hidden_states_prev[1].shape
 
         for layer in hidden_layers:
+            #initializing gates for hidden layers
             temp_array = np.zeros((num_samples, hidden_states_prev[layer].shape[0]))
             input_gate[layer] = forget_gate[layer] = cell_state_gate[layer] = \
                 output_gate[layer] = hidden_state[layer] = temp_array
 
-
+        #calculating gate values of samples
         for file_num in range(MBsize):
             for sample_num in range(num_samples):
-                input = np.append(xi[file_num,sample_num,:], 1) #taking one sample at a time
-                #print input
-                #print input.shape
-                #print xi.shape[1]
-                #print xi.shape[2]
-                for layer in hidden_layers: #need hidden layers in sorted order
-                    #print input_gate[layer][sample_num].shape
-                    #print np.squeeze(
-                    #    np.expand_dims(np.dot(np.transpose(weights[layer]['w_xi']), input), axis = 1) +
-                    #    np.dot(np.transpose(weights[layer]['w_hi']), hidden_states_prev[layer])).shape
-                    #return
-
+                #taking one sample at a time
+                input = xi[file_num, sample_num,:]
+                for layer in hidden_layers:
                     input_gate[layer][sample_num] = np.squeeze(self.sigmoid(
                         np.expand_dims(np.dot(np.transpose(weights[layer]['w_xi']), input), axis = 1) +
-                        np.dot(np.transpose(weights[layer]['w_hi']), hidden_states_prev[layer])))
-                    #+ bias_i)
-                    print input_gate[layer][sample_num].shape
-                    return
-        #remove previous cell state from all gate equations
-        forget_gate = self.sigmoid(np.dot(np.transpose(w_xf), xi) +
-                              np.dot(np.transpose(w_hf), hidden_state_prev) +
-                              (w_cf * cell_state_prev) + bias_f)
-        cell_state_gate = (forget_gate * cell_state_prev) + (input_gate * tanh(np.dot(
-                    np.transpose(w_xc), xi) + np.dot(np.transpose(w_hc), hidden_state_prev)
-                                                                               + bias_c))
-        output_gate = self.sigmoid(np.dot(np.transpose(w_xo), xi)
-                              + np.dot(np.transpose(w_ho), hidden_state_prev)
-                              + (w_co * cell_state_gate) + bias_o)
-        hidden_state = output_gate * self.tanh(cell_state_gate)
-        y = np.dot(np.transpose(w_hy), hidden_state) + bias_y
+                        np.dot(np.transpose(weights[layer]['w_hi']), hidden_states_prev[layer]) +
+                                                               bias[layer]['i']))
+                    forget_gate[layer][sample_num] = np.squeeze(self.sigmoid(
+                        np.expand_dims(np.dot(np.transpose(weights[layer]['w_xf']), input), axis = 1) +
+                        np.dot(np.transpose(weights[layer]['w_hf']), hidden_states_prev[layer]) +
+                        bias[layer]['f']))
+                    cell_state_gate[layer][sample_num] = np.squeeze(self.sigmoid(
+                        np.expand_dims(np.dot(np.transpose(weights[layer]['w_xc']), input), axis = 1) +
+                        np.dot(np.transpose(weights[layer]['w_hc']), hidden_states_prev[layer]) +
+                        bias[layer]['c']))
+                    output_gate[layer][sample_num] = np.squeeze(self.sigmoid(
+                        np.expand_dims(np.dot(np.transpose(weights[layer]['w_xo']), input), axis = 1) +
+                        np.dot(np.transpose(weights[layer]['w_ho']), hidden_states_prev[layer]) +
+                        bias[layer]['o']))
+                    hidden_state[layer][sample_num] = output_gate[layer][sample_num] *\
+                                                      self.tanh(cell_state_gate[layer][sample_num])
+                    #input for next layer
+                    input = hidden_state[layer][sample_num]
+
+                y.append(np.dot(np.transpose(weights['output']), np.expand_dims(input, axis = 1)) + bias['y'])
+        y = np.array(y)
+        #print y.shape
+        #return
         return input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y
     
     #def CTC(y):
         
     
-    def rnn_lstm_model_train(self, datagen, MBsize, epochs):
+    def rnn_lstm_model_train(self, datagen, MBsize, epochs = 1):
         """
         :param input_data: sorted input data, by length, in the form of spectrograms
         :param output_data: output transcripts for the audio files
@@ -104,7 +103,7 @@ class train_rnn_model(object):
         :param epochs: no. of iterations on the dataset
         """
 
-        weights, hidden_states = initialize_weights.main()
+        weights, hidden_states, bias = initialize_weights.main()
         #print hidden_states.keys()
         #print hidden_states['hidden2'].shape
         #return
@@ -119,10 +118,11 @@ class train_rnn_model(object):
                 #print xi.shape
                 #print label_lengths
                 flag = flag +1
-                if flag >= 2:
-                    return
-                #input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y = \
-                self.feedforward(xi, MBsize, weights, hidden_states)
+                #if flag >= 2:
+                #    return
+                input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y = \
+                self.feedforward(xi, MBsize, weights, hidden_states, bias)
+                print y
 
 def main(dev_desc_file, mini_batch_size, epochs):
     datagen = DataGenerator()
