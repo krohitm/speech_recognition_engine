@@ -18,6 +18,7 @@ class initialize_weights(object):
         for i in range(1,num_layers - 1):
             intermediate_weights = {}
             intermediate_weights['w_xi'] = np.array(weights_random(LS[i-1]+1, LS[i]))
+            #print intermediate_weights['w_xi'].shape
             intermediate_weights['w_xf'] = weights_random(LS[i-1]+1, LS[i])
             intermediate_weights['w_xc'] = weights_random(LS[i-1]+1, LS[i])
             intermediate_weights['w_xo'] = weights_random(LS[i-1]+1, LS[i])
@@ -25,7 +26,7 @@ class initialize_weights(object):
             intermediate_weights['w_hf'] = weights_random(LS[i], LS[i])
             intermediate_weights['w_hc'] = weights_random(LS[i], LS[i])
             intermediate_weights['w_ho'] = weights_random(LS[i], LS[i])
-            weights_dict['hidden'+str(i)] = intermediate_weights
+            weights_dict[i] = intermediate_weights
         weights_dict['output'] = weights_random(LS[-2]+1, LS[-1])
         return weights_dict
 
@@ -35,10 +36,10 @@ class initialize_weights(object):
         num_layers = len(LS)
         #hidden_layers_sizes = LS[1:-1]
         #num_hidden_layers = len(hidden_layers_sizes)
-        hidden_state = {}
+        hidden_states = {}
         for i in range(1, num_layers - 1):
-            hidden_state['hidden'+str(i)] = np.array(weights_random(LS[i], 1))
-        return hidden_state
+            hidden_states[i] = np.array(weights_random(LS[i], 1))
+        return hidden_states
 
 
 #bias_i = weights_random(1,1)
@@ -50,6 +51,7 @@ class initialize_weights(object):
 def main():
     new_obj = initialize_weights([161, 200, 100, 27])
     initial_weights = new_obj.initialize_weight_dict()
-    hidden_state = new_obj.initialize_hidden_state()
+    hidden_states = new_obj.initialize_hidden_state()
+    return initial_weights, hidden_states
 
-main()
+#main()
