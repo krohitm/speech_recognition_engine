@@ -35,9 +35,16 @@ class initialize_weights(object):
         LS = self.layers_sizes
         num_layers = len(LS)
         hidden_states = {}
+        cell_states = {}
         for i in range(1, num_layers - 1):
             hidden_states[i] = np.array(weights_random(LS[i], 1))
-        return hidden_states
+
+        for i in range(1, num_layers - 1):
+            cell_states[i] = np.array(weights_random(LS[i], 1))
+
+        return hidden_states, cell_states
+
+
 
     def initialize_bias(self):
         LS = self.layers_sizes
@@ -57,8 +64,8 @@ class initialize_weights(object):
 
 
 def main():
-    new_obj = initialize_weights([161, 200, 100, 27])
+    new_obj = initialize_weights([161, 200, 100, 29])
     initial_weights = new_obj.initialize_weight_dict()
-    hidden_states = new_obj.initialize_hidden_state()
+    hidden_states, cell_states = new_obj.initialize_hidden_state()
     bias = new_obj.initialize_bias()
-    return initial_weights, hidden_states, bias
+    return initial_weights, hidden_states, cell_states, bias
