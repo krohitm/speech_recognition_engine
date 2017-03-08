@@ -18,7 +18,7 @@ class initialize_weights(object):
         for i in range(1,num_layers - 1):
             intermediate_weights = {}
             intermediate_weights['w_xi'] = np.array(weights_random(LS[i-1], LS[i]))
-            #print intermediate_weights['w_xi'].shape
+            # print intermediate_weights['w_xi'].shape
             intermediate_weights['w_xf'] = weights_random(LS[i-1], LS[i])
             intermediate_weights['w_xc'] = weights_random(LS[i-1], LS[i])
             intermediate_weights['w_xo'] = weights_random(LS[i-1], LS[i])
@@ -55,11 +55,10 @@ class initialize_weights(object):
             bias['y'] = np.array(weights_random(LS[-1], 1))
         return bias
 
+
 def main():
     new_obj = initialize_weights([161, 200, 100, 27])
     initial_weights = new_obj.initialize_weight_dict()
     hidden_states = new_obj.initialize_hidden_state()
     bias = new_obj.initialize_bias()
     return initial_weights, hidden_states, bias
-
-#main()
