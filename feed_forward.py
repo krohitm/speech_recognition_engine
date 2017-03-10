@@ -3,6 +3,8 @@ from data_generator import DataGenerator
 import argparse
 import initialize_weights
 from logger import log
+import ctc_loss
+import timeit
 
 np.set_printoptions(threshold=np.nan)
 
@@ -131,7 +133,17 @@ class train_rnn_model(object):
 
         y = np.array(y)
         y_softmax = np.array(y_softmax)
-        # print y
+        # Sample code starts
+        # Calculation of CTC Loss
+        # Must reshape the output
+        aaa = y_softmax.reshape((143, 29))
+        # Take log of the output
+        eee = np.log(aaa)
+        most_probable_output, loss,  = ctc_loss.calculate_ctc_loss(eee)
+        log.debug("After CTC Loss calculation :")
+        log.debug("Most probable output: " + str(most_probable_output))
+        log.debug("Loss: " + str(loss))
+        # Sample code ends
         log.info(y_softmax)
         # return
         return input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y, y_softmax
