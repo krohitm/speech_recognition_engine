@@ -3,6 +3,7 @@ import timeit
 import operator
 from logger import log
 
+
 def merge_two_dicts(x1, y1):
     """Given two dicts, merge them into a new dict as a shallow copy."""
     z = x1.copy()
@@ -46,6 +47,7 @@ def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="exp
         temp_add = {}
         temp_remove = []
         for index, x in np.ndenumerate(y[t]):
+            c = alphabet[index[0]]
             # if x < -20.20:
                 # continue
             if any(dict_w):
@@ -67,13 +69,13 @@ def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="exp
                         # or simply add in temp_add with key+new_character
                         if key not in temp_remove:
                             temp_remove.append(key)
-                        temp_add[key[:-1] + c] = value+x
+                        if key not in temp_add:
+                            temp_add[key[:-1] + c] = value+x
+                        else:
+                            dd = temp_add[key]
+                            temp_add[key[:-1] + c] = np.logaddexp(value+x, dd)
                     else:
                         temp_add[key + c] = value + x
-
-        # Remove entries from dictionary
-        if temp_remove:
-            final_output = remove_entries(final_output, temp_remove)
 
         # Merge two dictionaries
         # Before merging update the values in temp_add as sum of probabilities for the existing entries
@@ -81,6 +83,10 @@ def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="exp
             for k, v in temp_add.iteritems():
                 if k in final_output:
                     temp_add[k] = np.logaddexp(temp_add[k], temp_add[k])
+
+        # Remove entries from dictionary
+        if temp_remove:
+            final_output = remove_entries(final_output, temp_remove)
 
         final_output = merge_two_dicts(final_output, temp_add)
 
