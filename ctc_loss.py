@@ -96,7 +96,7 @@ def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="exp
     # Calculate loss and most probable output
     most_probable_output = max(final_output.iteritems(), key=operator.itemgetter(1))[0]
     if e in final_output:
-        ctc_loss = final_output[e] / sum(final_output.values())
+        ctc_loss = 1.0 - final_output[e] / sum(final_output.values())
     else:
         ctc_loss = 1.0
     log.info("Most probable output : " + str(most_probable_output))
