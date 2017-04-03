@@ -14,13 +14,15 @@ np.set_printoptions(threshold=np.nan)
 
 class cnn_model(object):
     def __init__(self, epochs):
+        self.layer_type = [0,0,1,2]   #0 for conv layer, 1 for max pooling, 2 for fully connected
         self.epochs = epochs
-        self.context_window = 15
-        self.filter_size = 5
+        #self.context_window = 15
+        self.filter_size = [(10, 10), (8,1), (0,0), (10,28)] #filter size for different conv layers
         self.strides = 1
         self.pooling_size = 3
-        self.conv_depth = 10
+        self.conv_depth = [1,1,1,1]   #depth of layers - always 1 for FC
         self.layers = 1    #convolutional, max pooling and fully connected are different layers
+        self.weights = {}
 
     def softmax(self, output):
         sf = np.exp(output) / np.sum(np.exp(output))
@@ -51,12 +53,8 @@ class cnn_model(object):
 
         #3D array to store combined samples according to the filter size, for all the samples
         samples_combined = np.zeros((
-            num_samples - self.filter_size + 1, self.filter_size, num_features))   #num_samples - filter_size + 1
+            num_samples - self.filter_size[0] + 1, self.filter_size[0], num_features))   #num_samples - filter_size + 1
 
-        #print xi.shape
-        #for i in range(num_samples):
-        #    samples_combined = xi[0][i:self.filter_size][0:num_features]
-       # print samples_combined.shape
         #return
         layers = self.layers
         #conv_layer_pos
@@ -67,6 +65,7 @@ class cnn_model(object):
         for file_num in range(MBsize):
             expected_output = str(exp_out[file_num])
             for layer in range(layers):
+                #if
                 conv_layer[layer] = np.array(conv_fwd(xi, weights, self.filter_size, self.conv_depth))
                 #if max_pool_layer[layer] == 1:
                     #max_pool_layer[layer] = max_pooling(conv_layer[layer], self.pooling_size)
@@ -91,7 +90,15 @@ class cnn_model(object):
         :param epochs: no. of iterations on the dataset
         """
         epochs = self.epochs
-        weights= initialize_conv_weights.main(self.filter_size, self.conv_depth)
+        for i in range(len(self.layer_type)):
+            if self.layer_type[i] == 1:
+                self.weights[i] = 0
+            else:
+                self.weights[i] = initialize_conv_weights.init_weights(self.filter_size[i], self.conv_depth[i])
+                print self.weights[i].shape
+        return
+
+
         #print weights.shape
         #return
         flag = 0
