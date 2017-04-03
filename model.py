@@ -14,14 +14,14 @@ np.set_printoptions(threshold=np.nan)
 
 class cnn_model(object):
     def __init__(self, epochs):
-        self.layer_type = [0,0,1,2]   #0 for conv layer, 1 for max pooling, 2 for fully connected
+        self.layer_type = [0, 0, 1, 2]   # 0 for conv layer, 1 for max pooling, 2 for fully connected
         self.epochs = epochs
-        #self.context_window = 15
-        self.filter_size = [(10, 10), (8,1), (0,0), (10,28)] #filter size for different conv layers
+        # self.context_window = 15
+        self.filter_size = [(10, 10), (8, 1), (0, 0), (0, 28)]  # filter size for different conv layers
         self.strides = 1
-        self.pooling_size = 3
-        self.conv_depth = [1,1,1,1]   #depth of layers - always 1 for FC
-        self.layers = 1    #convolutional, max pooling and fully connected are different layers
+        self.pooling_size = 2
+        self.conv_depth = [1, 1, 1, 1]   # depth of layers - always 1 for FC
+        # self.layers = 1    # convolution, max pooling and fully connected are different layers
         self.weights = {}
 
     def softmax(self, output):
@@ -89,6 +89,17 @@ class cnn_model(object):
         :param MBsize: size of the mini batch
         :param epochs: no. of iterations on the dataset
         """
+        # Calculation of weight size for convolution layer
+        size_FC = 161
+        for k in range(len(self.layer_type)):
+            if self.layer_type[k] == 1:
+                if size_FC % self.pooling_size != 0:
+                    size_FC = size_FC / self.pooling_size + 1
+                else:
+                    size_FC /= self.pooling_size
+            if self.layer_type[k] == 2:
+                self.filter_size[k][0] = size_FC
+
         epochs = self.epochs
         for i in range(len(self.layer_type)):
             if self.layer_type[i] == 1:
@@ -96,11 +107,7 @@ class cnn_model(object):
             else:
                 self.weights[i] = initialize_conv_weights.init_weights(self.filter_size[i], self.conv_depth[i])
                 print self.weights[i].shape
-        return
 
-
-        #print weights.shape
-        #return
         flag = 0
         for epoch in range(epochs):
             for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration=True)):
