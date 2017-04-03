@@ -58,9 +58,10 @@ class train_rnn_model(object):
         sf = np.exp(output)/np.sum(np.exp(output))
         return sf
     
-    def feedforward(self, xi, MBsize, weights, hidden_states_prev, cell_states_prev, bias):
-        """f
+    def feedforward(self, xi, exp_out,  MBsize, weights, hidden_states_prev, cell_states_prev, bias):
+        """
         :param xi: input audio signals batch in the form of spectrogram
+        :param exp_out: expected output transcription
         :param weights: weights of the layers in a dictionary
         :param hidden_states_prev: previous hidden states of the hidden layers
         :param cell_states_prev: previous cell states of the hidden layers
@@ -100,6 +101,8 @@ class train_rnn_model(object):
 
         # calculating gate values of samples
         for file_num in range(MBsize):
+            expected_output = str(exp_out[file_num])
+            print expected_output
             for sample_num in range(num_samples):
                 # taking one sample at a time
                 input = xi[file_num, sample_num,:]
@@ -136,17 +139,17 @@ class train_rnn_model(object):
         # Sample code starts
         # Calculation of CTC Loss
         # Must reshape the output
-        aaa = y_softmax.reshape((143, 29))
+        aaa = y_softmax#.reshape((143, 29))
         # Take log of the output
         eee = np.log(aaa)
-        most_probable_output, loss,  = ctc_loss.calculate_ctc_loss(eee)
+        most_probable_output, loss,  = ctc_loss.calculate_ctc_loss(eee, e=expected_output)
         log.debug("After CTC Loss calculation :")
         log.debug("Most probable output: " + str(most_probable_output))
         log.debug("Loss: " + str(loss))
         # Sample code ends
-        log.info(y_softmax)
+        #log.info(y_softmax)
         # return
-        return input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y, y_softmax
+        return input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y, y_softmax, loss
 
     def labels(self, probs):
         """
@@ -166,19 +169,22 @@ class train_rnn_model(object):
         """
 
         weights, hidden_states_prev, cell_states_prev, bias = initialize_weights.main()
+        flag = 0
         for epoch in range(epochs):
             for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration = True)):
                 xi = batch['x']
                 y = batch['y']
-                text = batch['texts']
+                exp_out = batch['texts']
                 input_lengths = batch['input-lengths']
                 label_lengths = batch['label-lengths']
-                input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y, y_softmax =\
-                    self.feedforward(xi, MBsize, weights, hidden_states_prev, cell_states_prev, bias)
+                input_gate, forget_gate, cell_state_gate, output_gate, hidden_state, y, y_softmax, loss =\
+                    self.feedforward(xi, exp_out, MBsize, weights, hidden_states_prev, cell_states_prev, bias)
                 # print y_softmax.shape
                 #log.info(np.array_str(self.labels(y_softmax)))
                 #log.info(y)
-                return
+                flag += 1
+                if flag == 5:
+                    return
                 # return
 
 
@@ -199,4 +205,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.dev_desc_file, args.mini_batch_size, args.epochs)
-

@@ -4,6 +4,8 @@ import argparse
 import initialize_conv_weights
 from logger import log
 import ctc_loss
+from conv_feed_fwd import conv_feed_forward as conv_fwd
+from conv_feed_fwd import max_pooling
 from sigmoid import sigmoid
 import timeit
 
@@ -18,6 +20,7 @@ class cnn_model(object):
         self.strides = 1
         self.pooling_size = 3
         self.conv_depth = 10
+        self.layers = 1    #convolutional, max pooling and fully connected are different layers
 
     def softmax(self, output):
         sf = np.exp(output) / np.sum(np.exp(output))
@@ -42,54 +45,35 @@ class cnn_model(object):
         # num_hidden_layers = len(hidden_states_prev)  #num of hidden layers
 
         num_samples = xi.shape[1]  # num of samples in each file in the mini batch
+        num_features = xi.shape[2]  #no.of frequency bands in a sample
         y = []
         y_softmax = []
-        # dict_check ={}
 
-        hidden_layers = sorted(hidden_states_prev.keys())
-        # print hidden_states_prev[1].shape
+        #3D array to store combined samples according to the filter size, for all the samples
+        samples_combined = np.zeros((
+            num_samples - self.filter_size + 1, self.filter_size, num_features))   #num_samples - filter_size + 1
 
-        for layer in hidden_layers:
-            # initializing gates for hidden layers
-            input_gate[layer] = np.zeros((num_samples, hidden_states_prev[layer].shape[0]))
-            forget_gate[layer] = np.zeros((num_samples, hidden_states_prev[layer].shape[0]))
-            cell_state_gate[layer] = np.zeros((num_samples, hidden_states_prev[layer].shape[0]))
-            output_gate[layer] = np.zeros((num_samples, hidden_states_prev[layer].shape[0]))
-            hidden_state[layer] = np.zeros((num_samples, hidden_states_prev[layer].shape[0]))
-
+        #print xi.shape
+        #for i in range(num_samples):
+        #    samples_combined = xi[0][i:self.filter_size][0:num_features]
+       # print samples_combined.shape
+        #return
+        layers = self.layers
+        #conv_layer_pos
+        max_pool_layer_pos = [0,1]
+        conv_layer = {}
+        max_pool_layer = {}
         # calculating gate values of samples
         for file_num in range(MBsize):
             expected_output = str(exp_out[file_num])
-            print expected_output
-            for sample_num in range(num_samples):
-                # taking one sample at a time
-                input = xi[file_num, sample_num, :]
-                for layer in hidden_layers:
-                    # log.info(hidden_state[layer][sample_num])
-                    # input for next layer
-                    #  return
+            for layer in range(layers):
+                conv_layer[layer] = np.array(conv_fwd(xi, weights, self.filter_size, self.conv_depth))
+                #if max_pool_layer[layer] == 1:
+                    #max_pool_layer[layer] = max_pooling(conv_layer[layer], self.pooling_size)
+                print conv_layer[layer].shape
+                return
 
-                output = np.dot(np.transpose(weights['output']), np.expand_dims(input, axis=1)) + bias['y']
-                # log.info(output)
-                y_softmax.append(self.softmax(output))
-                y.append(output)
 
-        y = np.array(y)
-        y_softmax = np.array(y_softmax)
-        # Sample code starts
-        # Calculation of CTC Loss
-        # Must reshape the output
-        aaa = y_softmax  # .reshape((143, 29))
-        # Take log of the output
-        eee = np.log(aaa)
-        most_probable_output, loss, = ctc_loss.calculate_ctc_loss(eee, e=expected_output)
-        log.debug("After CTC Loss calculation :")
-        log.debug("Most probable output: " + str(most_probable_output))
-        log.debug("Loss: " + str(loss))
-        # Sample code ends
-        # log.info(y_softmax)
-        # return
-        return y, y_softmax, loss
 
     def labels(self, probs):
         """

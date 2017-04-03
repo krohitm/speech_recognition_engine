@@ -52,4 +52,5 @@ def normalize_features(feat):
 
 def weights_random(layer1_size, layer2_size):
     e = np.sqrt(6) / np.sqrt(layer1_size + layer2_size)
-    return np.dot(np.random.rand(layer1_size, layer2_size), 2 * e) - e
+    #return np.dot(np.random.rand(layer1_size, layer2_size), 2 * e) - e
+    return np.random.uniform(-e, e, (layer1_size, layer2_size))
