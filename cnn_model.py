@@ -31,16 +31,16 @@ class cnn_model(object):
         for l in range(len(self.layer_type)):
             if self.layer_type[l] == 0:
                 # Feed forward for convolution layer
-                self.conv_feed_forward(l, self.layer_inputs[l], self.weights[l], self.filter_size[l],
+                self.conv_feed_forward(l, self.layer_inputs[l], self.weights[l],
                                        self.conv_depth[l])
             elif self.layer_type[l] == 1:
                 # Feed forward for Max-pooling layer
                 self.max_pooling(l, self.layer_inputs[l], self.conv_depth[l])
             else:
                 # Feed forward for fully connected layer
-                print "FC Layer"
+                self.fc_feed_forward(l, self.layer_inputs[l], self.weights[l][:, :, 0])
 
-    def conv_feed_forward(self, layer_num, x_temp, weights, filter_size, conv_depth):
+    def conv_feed_forward(self, layer_num, x_temp, weights, conv_depth):
         conv_layer = []
         for depth in range(conv_depth):
             conv_frame = signal.convolve2d(x_temp[depth], np.rot90(weights[:, :, depth], 2),
@@ -50,6 +50,7 @@ class cnn_model(object):
         self.layer_inputs[layer_num+1] = conv_layer
 
     def max_pooling(self, layer_num, x_temp, conv_depth):
+        final_output = []
         for depth in range(conv_depth):
             temp = x_temp[depth]
             print temp.shape
@@ -58,8 +59,15 @@ class cnn_model(object):
                 iterator = len(rows) / self.pooling_size + 1
                 temp_list.append([np.amax(rows[self.pooling_size * i: self.pooling_size * i + self.pooling_size])
                                     for i in range(iterator)])
-            self.layer_outputs[layer_num] = np.asarray(temp_list).T
-            self.layer_inputs[layer_num+1] = np.asarray(temp_list).T
+            final_output.append(np.asarray(temp_list).T)
+        self.layer_outputs[layer_num] = final_output
+        self.layer_inputs[layer_num+1] = final_output
+
+    def fc_feed_forward(self, layer_num, x_temp, weights):
+        final_output = np.zeros((x_temp[0].T.shape[0], weights.shape[1]))
+        for i in range(len(x_temp)):
+            final_output = np.add(final_output, np.dot(x_temp[i].T, weights))
+        self.layer_outputs[layer_num] = final_output
 
     def labels(self, probs):
         """
