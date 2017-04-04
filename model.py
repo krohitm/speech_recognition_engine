@@ -72,8 +72,6 @@ class cnn_model(object):
                 print conv_layer[layer].shape
                 return
 
-
-
     def labels(self, probs):
         """
         :param probs:
@@ -89,6 +87,28 @@ class cnn_model(object):
         :param MBsize: size of the mini batch
         :param epochs: no. of iterations on the dataset
         """
+        # Initialize weights
+        self.initialize_network_weights()
+
+        epochs = self.epochs
+        flag = 0
+        for epoch in range(epochs):
+            for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration=True)):
+                x = batch['x']
+                y = batch['y']
+                exp_out = batch['texts']
+                input_lengths = batch['input-lengths']
+                label_lengths = batch['label-lengths']
+                y, y_softmax, loss = self.feedforward(x, exp_out, MBsize, weights)
+                # print y_softmax.shape
+                # log.info(np.array_str(self.labels(y_softmax)))
+                # log.info(y)
+                flag += 1
+                if flag == 5:
+                    return
+                    # return
+
+    def initialize_network_weights(self):
         # Calculation of weight size for convolution layer
         size_FC = 161
         for k in range(len(self.layer_type)):
@@ -100,30 +120,11 @@ class cnn_model(object):
             if self.layer_type[k] == 2:
                 self.filter_size[k][0] = size_FC
 
-        epochs = self.epochs
         for i in range(len(self.layer_type)):
             if self.layer_type[i] == 1:
                 self.weights[i] = 0
             else:
                 self.weights[i] = initialize_conv_weights.init_weights(self.filter_size[i], self.conv_depth[i])
-                print self.weights[i].shape
-
-        flag = 0
-        for epoch in range(epochs):
-            for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration=True)):
-                xi = batch['x']
-                y = batch['y']
-                exp_out = batch['texts']
-                input_lengths = batch['input-lengths']
-                label_lengths = batch['label-lengths']
-                y, y_softmax, loss = self.feedforward(xi, exp_out, MBsize, weights)
-                # print y_softmax.shape
-                # log.info(np.array_str(self.labels(y_softmax)))
-                # log.info(y)
-                flag += 1
-                if flag == 5:
-                    return
-                    # return
 
 
 def main(dev_desc_file, mini_batch_size, epochs):
