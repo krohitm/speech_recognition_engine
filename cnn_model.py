@@ -13,7 +13,7 @@ class cnn_model(object):
         self.epochs = epochs
         self.filter_size = [(10, 10), (8, 1), (0, 0), (0, 28)]  # filter size for different conv layers
         self.strides = 1
-        self.pooling_size = 2
+        self.pooling_size = 3
         self.conv_depth = [1, 1, 1, 1]   # depth of layers - always 1 for FC
         self.weights = {}
         self.layer_inputs = {}
@@ -35,7 +35,7 @@ class cnn_model(object):
                                        self.conv_depth[l])
             elif self.layer_type[l] == 1:
                 # Feed forward for Max-pooling layer
-                print "Max-pooling layer"
+                self.max_pooling(l, self.layer_inputs[l], self.conv_depth[l])
             else:
                 # Feed forward for fully connected layer
                 print "FC Layer"
@@ -48,6 +48,18 @@ class cnn_model(object):
             conv_layer.append(conv_frame)
         self.layer_outputs[layer_num] = conv_layer
         self.layer_inputs[layer_num+1] = conv_layer
+
+    def max_pooling(self, layer_num, x_temp, conv_depth):
+        for depth in range(conv_depth):
+            temp = x_temp[depth]
+            print temp.shape
+            temp_list = []
+            for rows in temp:
+                iterator = len(rows) / self.pooling_size + 1
+                temp_list.append([np.amax(rows[self.pooling_size * i: self.pooling_size * i + self.pooling_size])
+                                    for i in range(iterator)])
+            self.layer_outputs[layer_num] = np.asarray(temp_list).T
+            self.layer_inputs[layer_num+1] = np.asarray(temp_list).T
 
     def labels(self, probs):
         """
