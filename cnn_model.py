@@ -3,6 +3,8 @@ from data_generator import DataGenerator
 import argparse
 import initialize_conv_weights
 from scipy import signal
+import ctc_loss
+from logger import log
 
 np.set_printoptions(threshold=np.nan)
 
@@ -18,6 +20,7 @@ class cnn_model(object):
         self.weights = {}
         self.layer_inputs = {}
         self.layer_outputs = {}
+        self.max_pooling_indices = {}
 
     def softmax(self, output):
         sf = np.exp(output) / np.sum(np.exp(output))
@@ -45,29 +48,39 @@ class cnn_model(object):
         for depth in range(conv_depth):
             conv_frame = signal.convolve2d(x_temp[depth], np.rot90(weights[:, :, depth], 2),
                                            mode='same', boundary='fill', fillvalue=0)
-            conv_layer.append(conv_frame)
+            conv_layer.append(self.softmax(conv_frame))
         self.layer_outputs[layer_num] = conv_layer
         self.layer_inputs[layer_num+1] = conv_layer
 
     def max_pooling(self, layer_num, x_temp, conv_depth):
         final_output = []
+        final_output_indices = []
         for depth in range(conv_depth):
             temp = x_temp[depth]
             print temp.shape
             temp_list = []
+            temp_list_2 = []
             for rows in temp:
+                np_zeroes = np.zeros(rows.shape)
                 iterator = len(rows) / self.pooling_size + 1
                 temp_list.append([np.amax(rows[self.pooling_size * i: self.pooling_size * i + self.pooling_size])
                                     for i in range(iterator)])
+                aa = [np.argmax(rows[self.pooling_size * i: self.pooling_size * i + self.pooling_size])
+                      + (i * self.pooling_size) for i in range(iterator)]
+                for values in aa:
+                    np_zeroes[values] = 1
+                temp_list_2.append(np_zeroes)
             final_output.append(np.asarray(temp_list).T)
+            final_output_indices.append(np.asarray(temp_list_2).T)
         self.layer_outputs[layer_num] = final_output
         self.layer_inputs[layer_num+1] = final_output
+        self.max_pooling_indices[layer_num] = final_output_indices
 
     def fc_feed_forward(self, layer_num, x_temp, weights):
         final_output = np.zeros((x_temp[0].T.shape[0], weights.shape[1]))
         for i in range(len(x_temp)):
             final_output = np.add(final_output, np.dot(x_temp[i].T, weights))
-        self.layer_outputs[layer_num] = final_output
+        self.layer_outputs[layer_num] = self.softmax(final_output)
 
     def labels(self, probs):
         """
@@ -89,20 +102,24 @@ class cnn_model(object):
             for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration=True)):
                 x = batch['x']
                 y = batch['y']
-                expected_output = batch['texts']
+                output = batch['texts']
                 for k in range(MBsize):
                     # Prepare input for the first layer
+                    expected_output = str(output[k])
                     self.prepare_input_first_layer(x[k, :, :])
                     self.feedforward(expected_output[k])
+                    loss = self.calculate_ctc_loss(expected_output)
+                    self.layer_inputs = {}
+                    self.layer_outputs = {}
 
-        for epoch in range(self.epochs):
-            for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration=True)):
-                x = batch['x']
-                y = batch['y']
-                exp_out = batch['texts']
-                input_lengths = batch['input-lengths']
-                label_lengths = batch['label-lengths']
-                self.feedforward(x, exp_out, self.weights)
+    def calculate_ctc_loss(self, expected_output):
+        ctc_loss_input = np.log(self.layer_outputs[len(self.layer_type) - 1])
+        most_probable_output, loss, = ctc_loss.calculate_ctc_loss(ctc_loss_input, e=expected_output)
+        log.debug("After CTC Loss calculation :")
+        log.debug("Expected output: " + expected_output)
+        log.debug("Most probable output: " + str(most_probable_output))
+        log.debug("Loss: " + str(loss))
+        return loss
 
     def prepare_input_first_layer(self, x):
         input_layer = []

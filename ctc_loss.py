@@ -19,7 +19,7 @@ def remove_entries(y2, x2):
     return y2
 
 
-def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="expected output"):
+def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=5, e="expected output"):
     """
     :param y: log probabilities of outputs(dimensions: Time * labels)
     :param alphabet: default is initialized- label 1 is treated as blank
@@ -48,6 +48,7 @@ def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="exp
         temp_remove = []
         for index, x in np.ndenumerate(y[t]):
             c = alphabet[index[0]]
+            # log.debug(str(x))
             # if x < -20.20:
                 # continue
             if any(dict_w):
@@ -99,8 +100,6 @@ def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="exp
         ctc_loss = 1.0 - final_output[e] / sum(final_output.values())
     else:
         ctc_loss = 1.0
-    log.info("Most probable output : " + str(most_probable_output))
-    log.info("CTC loss: " + str(ctc_loss))
     return most_probable_output, ctc_loss
 
 
