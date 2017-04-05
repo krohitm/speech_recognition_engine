@@ -5,6 +5,7 @@ import initialize_conv_weights
 from scipy import signal
 import ctc_loss
 from logger import log
+from sigmoid import sigmoid
 
 np.set_printoptions(threshold=np.nan)
 
@@ -15,16 +16,21 @@ class cnn_model(object):
         self.epochs = epochs
         self.filter_size = [(10, 10), (8, 1), (0, 0), (0, 28)]  # filter size for different conv layers
         self.strides = 1
-        self.pooling_size = 3
+        self.pooling_size = 2
         self.conv_depth = [1, 1, 1, 1]   # depth of layers - always 1 for FC
         self.weights = {}
         self.layer_inputs = {}
         self.layer_outputs = {}
         self.max_pooling_indices = {}
+        self.learning_rate = 0.2
 
     def softmax(self, output):
+        aa = np.sum(np.exp(output), axis=1)
         sf = np.exp(output) / np.sum(np.exp(output))
         return sf
+
+    def delta_net(self, y):
+        return np.multiply(y, np.subtract(np.ones(y.shape), y))
 
     def feedforward(self, exp_out):
         """
@@ -41,14 +47,14 @@ class cnn_model(object):
                 self.max_pooling(l, self.layer_inputs[l], self.conv_depth[l])
             else:
                 # Feed forward for fully connected layer
-                self.fc_feed_forward(l, self.layer_inputs[l], self.weights[l][:, :, 0])
+                self.fc_feed_forward(l, self.layer_inputs[l], self.weights[l])
 
     def conv_feed_forward(self, layer_num, x_temp, weights, conv_depth):
         conv_layer = []
         for depth in range(conv_depth):
             conv_frame = signal.convolve2d(x_temp[depth], np.rot90(weights[:, :, depth], 2),
                                            mode='same', boundary='fill', fillvalue=0)
-            conv_layer.append(self.softmax(conv_frame))
+            conv_layer.append(sigmoid(conv_frame))
         self.layer_outputs[layer_num] = conv_layer
         self.layer_inputs[layer_num+1] = conv_layer
 
@@ -79,8 +85,26 @@ class cnn_model(object):
     def fc_feed_forward(self, layer_num, x_temp, weights):
         final_output = np.zeros((x_temp[0].T.shape[0], weights.shape[1]))
         for i in range(len(x_temp)):
-            final_output = np.add(final_output, np.dot(x_temp[i].T, weights))
-        self.layer_outputs[layer_num] = self.softmax(final_output)
+            final_output = np.add(final_output, np.dot(x_temp[i].T, weights[:, :, i]))
+        self.layer_outputs[layer_num] = self.softmax(sigmoid(final_output))
+
+    def backpropagate(self, loss):
+        print "Inside backpropagate"
+        for l in range(len(self.layer_type)):
+            # Backpropagate from last layer
+            layer = len(self.layer_type) - l - 1
+            if self.layer_type[layer] == 2:
+                # Backpropagate for fully connected layer
+                self.backpropagate_FC(layer, self.layer_inputs[layer], loss)
+
+    def backpropagate_FC(self, layer_num, x_temp, loss):
+        o = np.zeros((x_temp[0].T.shape[0], self.weights[layer_num][:, :, 0].shape[1]))
+        o.fill(loss)
+        temp = np.multiply(self.layer_outputs[layer_num], 1.0 - self.layer_outputs[layer_num])
+        o = np.multiply(o, temp)
+        for i in range(len(x_temp)):
+            self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i],
+                                                      self.learning_rate*np.dot(x_temp[i], o))
 
     def labels(self, probs):
         """
@@ -109,6 +133,7 @@ class cnn_model(object):
                     self.prepare_input_first_layer(x[k, :, :])
                     self.feedforward(expected_output[k])
                     loss = self.calculate_ctc_loss(expected_output)
+                    self.backpropagate(loss)
                     self.layer_inputs = {}
                     self.layer_outputs = {}
 
