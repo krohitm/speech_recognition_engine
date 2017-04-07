@@ -25,6 +25,7 @@ class cnn_model(object):
         self.max_pooling_indices = {}
         self.learning_rate = 0.1
         self.number_of_labels = 28
+        self.delta = {}
 
     def softmax(self, output):
         aa = np.sum(np.exp(output), axis=1)
@@ -94,23 +95,36 @@ class cnn_model(object):
 
     def backpropagate(self, loss):
         print "Inside backpropagate"
-        for l in range(len(self.layer_type)):
+        for layer in range(len(self.layer_type)-1, 0, -1):
             # Backpropagate from last layer
-            layer = len(self.layer_type) - l - 1
-            if self.layer_type[layer] == 2:
+            # layer = len(self.layer_type) - l - 1
+            if self.layer_type[layer] == 1:
+                # backpropagate for max pool
+                self.backpropagate_maxPool(layer)
+            elif self.layer_type[layer] == 2:
                 # Backpropagate for fully connected layer
                 self.backpropagate_FC(layer, self.layer_inputs[layer], loss)
 
     def backpropagate_FC(self, layer_num, x_temp, loss):
-        o = np.zeros((x_temp[0].T.shape[0], self.weights[layer_num][:, :, 0].shape[1]))
-        o.fill(loss)
-        temp = np.multiply(self.layer_outputs[layer_num], 1.0 - self.layer_outputs[layer_num])
-        o = np.multiply(o, temp)
+        deltaEOut = np.zeros((x_temp[0].T.shape[0], self.weights[layer_num][:, :, 0].shape[1]))
+        deltaEOut.fill(loss)
+        deltaOutNet = np.multiply(self.layer_outputs[layer_num], 1.0 - self.layer_outputs[layer_num])
+        deltaENet = np.multiply(deltaEOut, deltaOutNet)
         for i in range(len(x_temp)):
             self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i],
-                                                      self.learning_rate*np.dot(x_temp[i], o))
+                                                      self.learning_rate*np.dot(x_temp[i], deltaENet))
             self.bias[layer_num][:, :, i] = np.add(self.bias[layer_num][:, :, i],
-                                                    self.learning_rate * np.dot(np.ones((1, x_temp[i].shape[1])), o))
+                                            self.learning_rate * np.dot(np.ones((1, x_temp[i].shape[1])), deltaENet))
+            self.delta[i] = np.dot(self.weights[layer_num][:, :, i], deltaENet.T)
+
+    def backpropagate_maxPool(self, layer_num):
+        # Propagate delta backwards only
+        # No need to update weights
+        for key, value in self.delta.iteritems():
+            # Broadcast delta and trim to the size
+            self.delta[key] = np.repeat(self.delta[key], self.pooling_size, axis=0)
+            self.delta[key] = self.delta[key][0:self.max_pooling_indices[layer_num][key].shape[0], :]
+            self.delta[key] = np.multiply(self.delta[key], self.max_pooling_indices[layer_num][key])
 
     def labels(self, probs):
         """
