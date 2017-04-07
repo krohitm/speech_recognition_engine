@@ -19,10 +19,12 @@ class cnn_model(object):
         self.pooling_size = 2
         self.conv_depth = [1, 1, 1, 1]   # depth of layers - always 1 for FC
         self.weights = {}
+        self.bias = {}
         self.layer_inputs = {}
         self.layer_outputs = {}
         self.max_pooling_indices = {}
-        self.learning_rate = 0.2
+        self.learning_rate = 0.1
+        self.number_of_labels = 28
 
     def softmax(self, output):
         aa = np.sum(np.exp(output), axis=1)
@@ -54,7 +56,7 @@ class cnn_model(object):
         for depth in range(conv_depth):
             conv_frame = signal.convolve2d(x_temp[depth], np.rot90(weights[:, :, depth], 2),
                                            mode='same', boundary='fill', fillvalue=0)
-            conv_layer.append(sigmoid(conv_frame))
+            conv_layer.append(sigmoid(np.add(conv_frame, self.bias[layer_num][:, :, depth])))
         self.layer_outputs[layer_num] = conv_layer
         self.layer_inputs[layer_num+1] = conv_layer
 
@@ -85,7 +87,9 @@ class cnn_model(object):
     def fc_feed_forward(self, layer_num, x_temp, weights):
         final_output = np.zeros((x_temp[0].T.shape[0], weights.shape[1]))
         for i in range(len(x_temp)):
+            # Adding multiple depth output
             final_output = np.add(final_output, np.dot(x_temp[i].T, weights[:, :, i]))
+            final_output = np.add(final_output, self.bias[layer_num][:, :, i])
         self.layer_outputs[layer_num] = self.softmax(sigmoid(final_output))
 
     def backpropagate(self, loss):
@@ -120,7 +124,7 @@ class cnn_model(object):
         :param datagen: Temp
         """
         # Initialize weights
-        self.initialize_network_weights()
+        self.initialize_network_weights_bias()
 
         for epoch in range(self.epochs):
             for i, batch in enumerate(datagen.iterate_dev(MBsize, sortBy_duration=True)):
@@ -152,7 +156,7 @@ class cnn_model(object):
             input_layer.append(x)
         self.layer_inputs[0] = input_layer
 
-    def initialize_network_weights(self):
+    def initialize_network_weights_bias(self):
         # Calculation of weight size for convolution layer
         size_FC = 161
         for k in range(len(self.layer_type)):
@@ -162,13 +166,26 @@ class cnn_model(object):
                 else:
                     size_FC /= self.pooling_size
             if self.layer_type[k] == 2:
-                self.filter_size[k] = (size_FC, 28)
+                self.filter_size[k] = (size_FC, self.number_of_labels)
 
+        num_neurons = 161
         for i in range(len(self.layer_type)):
             if self.layer_type[i] == 1:
                 self.weights[i] = 0
+                self.bias[i] = 0
             else:
                 self.weights[i] = initialize_conv_weights.init_weights(self.filter_size[i], self.conv_depth[i])
+                if i == 0:
+                    self.bias[i] = initialize_conv_weights.init_bias(num_neurons, self.conv_depth[i])
+                else:
+                    if self.layer_type[i] == 2:
+                        self.bias[i] = initialize_conv_weights.init_bias(self.number_of_labels, self.conv_depth[i])
+                    else:
+                        if self.layer_type[i-1] == 1:
+                            num_neurons = num_neurons/self.pooling_size + 1
+                            self.bias[i] = initialize_conv_weights.init_bias(num_neurons, self.conv_depth[i])
+                        else:
+                            self.bias[i] = initialize_conv_weights.init_bias(num_neurons, self.conv_depth[i])
 
 
 def main(dev_desc_file, mini_batch_size, epochs):
