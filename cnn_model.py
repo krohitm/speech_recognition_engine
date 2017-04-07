@@ -109,6 +109,8 @@ class cnn_model(object):
         for i in range(len(x_temp)):
             self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i],
                                                       self.learning_rate*np.dot(x_temp[i], o))
+            self.bias[layer_num][:, :, i] = np.add(self.bias[layer_num][:, :, i],
+                                                    self.learning_rate * np.dot(np.ones((1, x_temp[i].shape[1])), o))
 
     def labels(self, probs):
         """
