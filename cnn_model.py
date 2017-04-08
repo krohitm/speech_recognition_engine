@@ -55,8 +55,10 @@ class cnn_model(object):
     def conv_feed_forward(self, layer_num, x_temp, weights, conv_depth):
         conv_layer = []
         for depth in range(conv_depth):
-            conv_frame = signal.convolve2d(x_temp[depth], np.rot90(weights[:, :, depth], 2),
-                                           mode='same', boundary='fill', fillvalue=0)
+            # conv_frame = signal.convolve2d(x_temp[depth], np.rot90(weights[:, :, depth], 2),
+            # mode='same', boundary='fill', fillvalue=0)
+            conv_frame = signal.convolve2d(x_temp[depth], weights[:, :, depth],
+                                            mode='same', boundary='fill', fillvalue=0)
             conv_layer.append(sigmoid(np.add(conv_frame, self.bias[layer_num][:, :, depth])))
         self.layer_outputs[layer_num] = conv_layer
         self.layer_inputs[layer_num+1] = conv_layer
@@ -95,15 +97,18 @@ class cnn_model(object):
 
     def backpropagate(self, loss):
         print "Inside backpropagate"
-        for layer in range(len(self.layer_type)-1, 0, -1):
+        for l in range(len(self.layer_type)):
             # Backpropagate from last layer
-            # layer = len(self.layer_type) - l - 1
+            layer = len(self.layer_type) - l - 1
             if self.layer_type[layer] == 1:
                 # backpropagate for max pool
                 self.backpropagate_maxPool(layer)
             elif self.layer_type[layer] == 2:
                 # Backpropagate for fully connected layer
                 self.backpropagate_FC(layer, self.layer_inputs[layer], loss)
+            else:
+                # backpropagate convolution layer
+                self.backpropagate_convolution(layer, self.layer_inputs[layer])
 
     def backpropagate_FC(self, layer_num, x_temp, loss):
         deltaEOut = np.zeros((x_temp[0].T.shape[0], self.weights[layer_num][:, :, 0].shape[1]))
@@ -125,6 +130,25 @@ class cnn_model(object):
             self.delta[key] = np.repeat(self.delta[key], self.pooling_size, axis=0)
             self.delta[key] = self.delta[key][0:self.max_pooling_indices[layer_num][key].shape[0], :]
             self.delta[key] = np.multiply(self.delta[key], self.max_pooling_indices[layer_num][key])
+
+    def backpropagate_convolution(self, layer_num, x_temp):
+        print ""
+        for i in range(len(x_temp)):
+            temp = np.multiply(self.layer_outputs[layer_num][i], 1.0 - self.layer_outputs[layer_num][i]).T
+            delta = np.multiply(self.delta[i], temp)
+            # Zero padding for delta
+            up = int(np.ceil((self.filter_size[layer_num][0]-1)/2.0))
+            down = (self.filter_size[layer_num][0]-1)/2
+            left = int(np.ceil((self.filter_size[layer_num][1]-1)/2.0))
+            right = (self.filter_size[layer_num][1]-1)/2
+
+            npad = ((up, down), (left, right))
+            delta = np.pad(delta, pad_width=npad, mode='constant', constant_values=0)
+            delta_W = signal.convolve2d(delta, sigmoid(np.rot90(x_temp[i].T, 2)),
+                                        mode='valid', boundary='fill')
+            self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i], delta_W)
+            self.delta[i] = signal.convolve2d(delta, sigmoid(np.rot90(self.weights[layer_num][:, :, i], 2)),
+                                        mode='valid', boundary='fill')
 
     def labels(self, probs):
         """
