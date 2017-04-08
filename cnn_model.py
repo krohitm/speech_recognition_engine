@@ -118,11 +118,11 @@ class cnn_model(object):
         deltaOutNet = np.multiply(self.layer_outputs[layer_num], 1.0 - self.layer_outputs[layer_num])
         deltaENet = np.multiply(deltaEOut, deltaOutNet)
         for i in range(len(x_temp)):
+            self.delta[i] = np.dot(self.weights[layer_num][:, :, i], deltaENet.T)
             self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i],
                                                       self.learning_rate*np.dot(x_temp[i].T, deltaENet))
             self.bias[layer_num][:, :, i] = np.add(self.bias[layer_num][:, :, i],
                                             self.learning_rate * np.dot(np.ones((1, x_temp[i].T.shape[1])), deltaENet))
-            self.delta[i] = np.dot(self.weights[layer_num][:, :, i], deltaENet.T)
 
     def backpropagate_maxPool(self, layer_num):
         # Propagate delta backwards only
@@ -144,12 +144,16 @@ class cnn_model(object):
             right = (self.filter_size[layer_num][1]-1)/2
 
             npad = ((up, down), (left, right))
+            # Update bias
+            delta_B = self.learning_rate * \
+                      np.dot(np.ones((1, x_temp[i].shape[0])), delta.T)
+            self.bias[layer_num][:, :, i] = np.add(self.bias[layer_num][:, :, i], delta_B)
             delta = np.pad(delta, pad_width=npad, mode='constant', constant_values=0)
-            delta_W = signal.convolve2d(delta, sigmoid(np.rot90(x_temp[i].T, 2)),
+            delta_W = self.learning_rate * signal.convolve2d(delta, sigmoid(np.rot90(x_temp[i].T, 2)),
                                         mode='valid', boundary='fill')
-            self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i], delta_W)
             self.delta[i] = signal.convolve2d(delta, sigmoid(np.rot90(self.weights[layer_num][:, :, i], 2)),
-                                        mode='valid', boundary='fill')
+                                              mode='valid', boundary='fill')
+            self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i], delta_W)
 
     def labels(self, probs):
         """
@@ -244,7 +248,7 @@ if __name__ == '__main__':
                         help='Path where JSON file for transcripts and audio files is stored', default='data.json')
     parser.add_argument('--mini_batch_size', type=int, default=1,
                         help='Size of mini batch for training')
-    parser.add_argument('--epochs', type=int, default=100, help='No. of epochs to train the model')
+    parser.add_argument('--epochs', type=int, default=1000, help='No. of epochs to train the model')
     args = parser.parse_args()
 
     main(args.dev_desc_file, args.mini_batch_size, args.epochs)

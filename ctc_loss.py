@@ -19,7 +19,7 @@ def remove_entries(y2, x2):
     return y2
 
 
-def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=10, e="expected output"):
+def calculate_ctc_loss(y, alphabet="-' abcdefghijklmnopqrstuvwxyz", w=20, e="expected output"):
     """
     :param y: log probabilities of outputs(dimensions: Time * labels)
     :param alphabet: default is initialized- label 1 is treated as blank

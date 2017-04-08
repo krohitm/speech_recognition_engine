@@ -38,7 +38,7 @@ def main(data_directory, output_file):
 
     with open(output_file, 'w') as out_file:
         for i in range(len(keys)):
-            if durations[i] < 2.30:
+            if durations[i] < 1.50:
                 line = json.dumps({'keys': keys[i], 'duration': durations[i], 'text': labels[i]})
                 out_file.write(line + '\n')
 
