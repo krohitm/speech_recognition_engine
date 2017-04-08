@@ -38,15 +38,16 @@ def main(data_directory, output_file):
 
     with open(output_file, 'w') as out_file:
         for i in range(len(keys)):
-            line = json.dumps({'keys': keys[i], 'duration': durations[i], 'text': labels[i]})
-            out_file.write(line + '\n')
+            if durations[i] < 2.30:
+                line = json.dumps({'keys': keys[i], 'duration': durations[i], 'text': labels[i]})
+                out_file.write(line + '\n')
 
 
 if __name__ == '__main__':
     # path_data_directory = "../MLProject/LibriSpeech/dev-clean/"
     # path_output_file = "./data.json"
     parser = argparse.ArgumentParser()
-    parser.add_argument('cLd', type=str,
+    parser.add_argument('data_directory', type=str,
                         help='Path to data directory')
     parser.add_argument('output_file', type=str,
                         help='Path to output file')
