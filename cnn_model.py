@@ -24,8 +24,8 @@ class cnn_model(object):
         self.layer_inputs = {}
         self.layer_outputs = {}
         self.max_pooling_indices = {}
-        self.learning_rate = 0.1
-        self.number_of_labels = 28
+        self.learning_rate = 0.01
+        self.number_of_labels = 29
         self.delta = {}
 
     def softmax(self, output):
@@ -149,9 +149,10 @@ class cnn_model(object):
                       np.dot(np.ones((1, x_temp[i].shape[0])), delta.T)
             self.bias[layer_num][:, :, i] = np.add(self.bias[layer_num][:, :, i], delta_B)
             delta = np.pad(delta, pad_width=npad, mode='constant', constant_values=0)
-            delta_W = self.learning_rate * signal.convolve2d(delta, sigmoid(np.rot90(x_temp[i].T, 2)),
+            # x_padded = np.pad(x_temp[i].T, pad_width=npad, mode='constant', constant_values=0)
+            delta_W = self.learning_rate * signal.convolve2d(delta, np.rot90(x_temp[i].T, 2),
                                         mode='valid', boundary='fill')
-            self.delta[i] = signal.convolve2d(delta, sigmoid(np.rot90(self.weights[layer_num][:, :, i], 2)),
+            self.delta[i] = signal.convolve2d(delta, np.rot90(self.weights[layer_num][:, :, i], 2),
                                               mode='valid', boundary='fill')
             self.weights[layer_num][:, :, i] = np.add(self.weights[layer_num][:, :, i], delta_W)
 
